@@ -1,48 +1,54 @@
 function run_walkdown_tests()
-    tersdir = joinpath(tempdir(), "TEST_WALKDOWN")
-    rm(tersdir; force=true, recursive=true)
+    TESTDIR = joinpath(tempdir(), "TEST_WALKDOWN")
+    rm(TESTDIR; force = true, recursive = true)
 
     try
         # create files
-        _createfile(tersdir, "tesfile")
-        _createfile(tersdir, "sub1", "tesfile")
-        _createfile(tersdir, "sub1", "sub11", "tesfile")
-        _createfile(tersdir, "sub1", "sub11", "sub111", "tesfile")
-        _createfile(tersdir, "sub1", "sub12", "tesfile")
-        _createfile(tersdir, "sub1", "sub12", "sub121", "tesfile")
-        _createfile(tersdir, "sub2", "tesfile")
-        _createfile(tersdir, "sub2", "sub21", "tesfile")
-        _createfile(tersdir, "sub2", "sub21", "sub211", "tesfile")
-        _createfile(tersdir, "sub2", "sub22", "tesfile")
-        _createfile(tersdir, "sub2", "sub22", "sub221", "tesfile")
+        _createfile(TESTDIR, "tesfile")
+        _createfile(TESTDIR, "sub1", "tesfile")
+        _createfile(TESTDIR, "sub1", "sub11", "tesfile")
+        _createfile(TESTDIR, "sub1", "sub11", "sub111", "tesfile")
+        _createfile(TESTDIR, "sub1", "sub12", "tesfile")
+        _createfile(TESTDIR, "sub1", "sub12", "sub121", "tesfile")
+        _createfile(TESTDIR, "sub2", "tesfile")
+        _createfile(TESTDIR, "sub2", "sub21", "tesfile")
+        _createfile(TESTDIR, "sub2", "sub21", "sub211", "tesfile")
+        _createfile(TESTDIR, "sub2", "sub22", "tesfile")
+        _createfile(TESTDIR, "sub2", "sub22", "sub221", "tesfile")
 
         @info("Testing walkdown", nthreads())
 
         # all
-        for (nths, keepout, ref_filecount) in [
-                (1, (dir) -> false, 11),
-                (2, (dir) -> false, 11),
-                (1, (dir) -> (basename(dir) == "sub2"), 6),
-                (2, (dir) -> (basename(dir) == "sub2"), 6)
+        for (th, keepout, ref_filecount) in [
+                (false, (dir) -> false, 11),
+                (true, (dir) -> false, 11),
+                (false, (dir) -> (basename(dir) == "sub2"), 6),
+                (true, (dir) -> (basename(dir) == "sub2"), 6)
             ]
-
-            # all threaded
-            filecounts = Dict()
-            walkdown(tersdir; keepout, nths) do path
-                thid = threadid()
-                get!(filecounts, thid, 0)
-                
-                @info("At", path, nths, thid)
-                isfile(path) && (filecounts[thid] += 1)
-                sleep(0.2)
-                false
+            
+            @info("At", th, ref_filecount)
+            
+            for it in 1:10
+                # all threaded
+                filecounts = Dict{Int, Int}()
+                walkdown(TESTDIR; keepout, th) do path
+                    thid = threadid()
+                    get!(filecounts, thid, 0)
+                    
+                    isfile(path) && (filecounts[thid] += 1)
+                    th && sleep(0.1)
+                    false
+                end
+                filecount = sum(values(filecounts))
+                @show filecounts
+                @test filecount == ref_filecount
             end
-            filecount = sum(values(filecounts))
-            @test filecount == ref_filecount
+
+            println()
         end
 
     finally
-        rm(tersdir; force=true, recursive=true)
+        rm(TESTDIR; force = true, recursive = true)
     end
 
 end

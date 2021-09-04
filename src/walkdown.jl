@@ -1,4 +1,6 @@
-function _walkdown(f, root; keepout, onerr) 
+function _walkdown(f::Function, root::AbstractString; 
+        keepout::Function, onerr::Function
+    ) 
     content = readdir(root)
     for name in content
         
@@ -11,63 +13,47 @@ function _walkdown(f, root; keepout, onerr)
         # recursive call
         if isdir(path)
             keepout(path) && continue
-            val = _walkdown(f, path; keepout, onerr)
-            (val === true) && return val 
+            _walkdown(f, path; keepout, onerr)
         end
     end
 end
 
-function _walkdown_th(f, root; 
-        keepout, nths, onerr
-    ) 
+function _walkdown_th(f::Function, root::AbstractString;
+        keepout::Function, onerr::Function,
+        endsig::Ref{Bool}
+    )
 
-    # init engine
-    in_waiting_zone = trues(nths)
-    dir_ch = Channel{String}(Inf)
-    put!(dir_ch, root)
+    endsig[] && return
 
-    @threads for _ in 1:nths
-        thid = threadid()
-        
-        for curr_dir in dir_ch
-            
-            in_waiting_zone[thid] = false
-            iput = false
-            
-            # read dir content
-            content = try
-                readdir(curr_dir)
-            catch err
-                (onerr(curr_dir, err) === true) && (close(dir_ch); return)
-                continue
-            end
+    content = try; readdir(root)
+        catch err; (onerr(root, err) === true) && (endsig[] = true; return)
+    end
 
-            # walk dir
-            path::String = ""
-            subi = firstindex(content)
-            sub1 = lastindex(content)
-            while subi <= sub1
-                try
-                    for name in subi:sub1
-                        name = content[subi]
-                        path = joinpath(curr_dir, name)
+    # walk dir
+    path::String = ""
+    subi = firstindex(content)
+    sub1 = lastindex(content)
+    @sync while subi <= sub1
+        try
+            for _ in subi:sub1
+                name = content[subi]
+                subi += 1
 
-                        (f(path) === true) && (close(dir_ch); return)
-                        iput = isdir(path) && !keepout(path) && isopen(dir_ch)
-                        iput && put!(dir_ch, path)
-                        subi += 1
-                    end
-                catch err
-                    (onerr(path, err) === true) && (close(dir_ch); return)
-                    subi += 1
+                path = joinpath(root, name)
+                (f(path) === true) && (endsig[] = true)
+                endsig[] && return
+
+                if isdir(path)
+                    keepout(path) && continue
+                    @spawn _walkdown_th(f, $path; keepout, onerr, endsig)
                 end
             end
-
-            # check zone
-            in_waiting_zone[thid] = true
-            !iput && isempty(dir_ch) && all(in_waiting_zone) && (close(dir_ch); return)
+        catch err
+            (onerr(path, err) === true) && (endsig[] = true)
+            endsig[] == true
         end
     end
+
 end
 
 """
@@ -84,10 +70,10 @@ This method do not waranty thread safetiness in any of it callbacks,
 function walkdown(f::Function, root; 
         keepout::Function = (dir) -> false, 
         onerr::Function = (path, err) -> rethrow(err),
-        nths::Int = 1
+        th::Bool = false
     ) 
-    nths > 1 ?
-        _walkdown_th(f, root; keepout, onerr, nths) :
+    th ? 
+        _walkdown_th(f, root; keepout, onerr, endsig = Ref(false)) :
         _walkdown(f, root; keepout, onerr)
     
     return nothing
