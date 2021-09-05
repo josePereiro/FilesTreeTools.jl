@@ -1,19 +1,31 @@
 function _walkdown(f::Function, root::AbstractString; 
         keepout::Function, onerr::Function
-    ) 
-    content = readdir(root)
-    for name in content
-        
-        path = joinpath(root, name)
-        val = try; f(path)
-            catch err; onerr(path, err) 
-        end
-        (val === true) && return val
+    )
 
-        # recursive call
-        if isdir(path)
-            keepout(path) && continue
-            _walkdown(f, path; keepout, onerr)
+    content = try; readdir(root)
+        catch err; (onerr(root, err) === true) && return
+    end
+
+    # walk dir
+    path::String = ""
+    subi = firstindex(content)
+    sub1 = lastindex(content)
+    while subi <= sub1
+        try
+            for _ in subi:sub1
+                name = content[subi]
+                subi += 1
+
+                path = joinpath(root, name)
+                (f(path) === true) && return
+
+                if isdir(path)
+                    keepout(path) && continue
+                    _walkdown(f, path; keepout, onerr)
+                end
+            end
+        catch err;
+            (onerr(path, err) === true) && return
         end
     end
 end
