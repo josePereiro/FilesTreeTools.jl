@@ -1,5 +1,6 @@
 function run_walkdown_tests()
-    TESTDIR = joinpath(tempdir(), "TEST_WALKDOWN")
+    
+    TESTDIR = joinpath(tempdir(), "TEST_")
     rm(TESTDIR; force = true, recursive = true)
 
     try
@@ -28,7 +29,7 @@ function run_walkdown_tests()
             
             @info("At", th, ref_filecount)
             
-            for it in 1:10
+            for _ in 1:10
                 # all threaded
                 filecounts = Dict{Int, Int}()
                 walkdown(TESTDIR; keepout, th) do path
@@ -46,6 +47,32 @@ function run_walkdown_tests()
 
             println()
         end
+
+        @info("Testing filtertree", nthreads())
+
+        for (th, filter_, keepout, ref_filecount) in [
+                (true, isdir, (dir) -> false, 10),
+                (false, isdir, (dir) -> false, 10),
+                (true, isdir, (dir) -> (basename(dir) == "sub2"), 6),
+                (false, isdir, (dir) -> (basename(dir) == "sub2"), 6),
+
+                (true, isfile, (dir) -> false, 11),
+                (false, isfile, (dir) -> false, 11),
+                (true, isfile, (dir) -> (basename(dir) == "sub2"), 6),
+                (false, isfile, (dir) -> (basename(dir) == "sub2"), 6),
+            ]
+
+            @info("At", th, nameof(filter_), ref_filecount)
+
+            for _ in 1:10
+                arr = filtertree(filter_, TESTDIR; th, keepout)
+                @show isfile.(arr)
+                @test length(arr) == ref_filecount
+            end
+
+            println()
+        end
+
 
     finally
         rm(TESTDIR; force = true, recursive = true)
