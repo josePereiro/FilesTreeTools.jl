@@ -1,6 +1,6 @@
 function walkup(f::Function, dir0::AbstractString;
         root = homedir(),
-        onerr::Function = (path, err) -> rethrow(err),
+        onerr::Function = _default_onerr,
     )
 
     root = abspath(root)

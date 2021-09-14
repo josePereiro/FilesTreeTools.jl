@@ -74,19 +74,26 @@ function _walkdown_th(f::Function, root::AbstractString;
 end
 
 """
-`walkdown_th(f, root; keepout = (dir) -> false, th = false)`
+`walkdown_th(f, root; onerr::Function, keepout::Function, thfrec::Float64)`
 
 walkdown the file tree applying `f` to all the founded paths.
 The return value of `f` is consider a break flag, so if it returns `true`
 the walk if over.
 `keepout` is a filter that disallows walks a dir if returns `true`.
-This method do not waranty thread safetiness in any of it callbacks, 
+`thfrec` = [0,1] determines the frecuency of @spawn threads.
+That is, `thfrec > 0` makes the method multithreaded.
+[NOTE] This method do not waranty thread safetiness in any of it callbacks, 
 `f` or `keepout`. You must do it for yourself.
+
+defaults:
+    onerr = (path, err) -> (err isa InterruptException) ? rethrow(err) : nothing
+    keepout = (dir) -> false
+    thfrec = 0.0
 
 """
 function walkdown(f::Function, root; 
-        keepout::Function = (dir) -> false, 
-        onerr::Function = (path, err) -> rethrow(err),
+        keepout::Function = _default_keepout, 
+        onerr::Function = _default_onerr,
         thfrec::Float64 = 0.0
     ) 
     thfrec > 0.0 ? 
