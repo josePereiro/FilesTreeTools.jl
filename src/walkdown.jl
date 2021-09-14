@@ -32,16 +32,17 @@ end
 
 function _walkdown_th(f::Function, root::AbstractString;
         keepout::Function, onerr::Function,
-        endsig::Ref{Bool}
+        endsig::Ref{Bool}, thfrec::Float64
     )
 
     endsig[] && return
-
+    
     content = try; readdir(root)
         catch err; (onerr(root, err) === true) && (endsig[] = true; return)
     end
-
+    
     # walk dir
+    allth = (thfrec >= 1.0)
     path::String = ""
     subi = firstindex(content)
     sub1 = lastindex(content)
@@ -57,7 +58,11 @@ function _walkdown_th(f::Function, root::AbstractString;
 
                 if isdir(path)
                     keepout(path) && continue
-                    @spawn _walkdown_th(f, $path; keepout, onerr, endsig)
+                    if allth || (rand() < thfrec)
+                        @spawn _walkdown_th(f, $path; keepout, onerr, endsig, thfrec)
+                    else
+                       _walkdown_th(f, path; keepout, onerr, endsig, thfrec)
+                    end
                 end
             end
         catch err
@@ -82,10 +87,10 @@ This method do not waranty thread safetiness in any of it callbacks,
 function walkdown(f::Function, root; 
         keepout::Function = (dir) -> false, 
         onerr::Function = (path, err) -> rethrow(err),
-        th::Bool = false
+        thfrec::Float64 = 0.0
     ) 
-    th ? 
-        _walkdown_th(f, root; keepout, onerr, endsig = Ref(false)) :
+    thfrec > 0.0 ? 
+        _walkdown_th(f, root; keepout, onerr, endsig = Ref(false), thfrec) :
         _walkdown(f, root; keepout, onerr)
     
     return nothing

@@ -5,8 +5,11 @@ module FilesTreeTools
 
     # Write your package code here.
     include("walkdown.jl")
-    include("filtertree.jl")
+    include("filterdown.jl")
+    include("walkup.jl")
+    include("filterup.jl")
 
-    export walkdown, filtertree
+    export walkup, filterup
+    export walkdown, filterdown
 
 end
