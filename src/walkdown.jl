@@ -2,7 +2,7 @@ function _walkdown(f::Function, root::AbstractString;
         keepout::Function, onerr::Function
     )
 
-    content = try; readdir(root)
+    subpaths = try; readdir(root; join = true)
         catch err; 
             flag = onerr(path, err)
             (flag === true) && return flag
@@ -10,21 +10,22 @@ function _walkdown(f::Function, root::AbstractString;
 
     # walk dir
     path::String = ""
-    subi = firstindex(content)
-    sub1 = lastindex(content)
+    subi = firstindex(subpaths)
+    sub1 = lastindex(subpaths)
     while subi <= sub1
         try
             for _ in subi:sub1
-                name = content[subi]
+                path = subpaths[subi]
                 subi += 1
 
-                path = joinpath(root, name)
                 flag = f(path)
-                (flag === true) && return flag
+                if (flag === true) 
+                    return flag
+                end
 
                 if isdir(path)
                     keepout(path) && continue
-                    flag = walkdown(f, path; keepout, onerr)
+                    flag = _walkdown(f, path; keepout, onerr)
                     (flag === true) && return flag
                 end
             end
@@ -32,7 +33,7 @@ function _walkdown(f::Function, root::AbstractString;
             flag = onerr(path, err)
             (flag === true) && return flag
         end
-    end # while
+    end # whiles
 end
 
 function _walkdown_th(f::Function, root::AbstractString;
@@ -42,7 +43,7 @@ function _walkdown_th(f::Function, root::AbstractString;
 
     endsig[] && return endsig[]
     
-    content = try; readdir(root)
+    subpaths = try; readdir(root; join = true)
         catch err; 
             flag = onerr(root, err) 
             (flag === true) && (endsig[] = flag; return flag)
@@ -51,16 +52,15 @@ function _walkdown_th(f::Function, root::AbstractString;
     # walk dir
     allth = (thfrec >= 1.0)
     path::String = ""
-    subi = firstindex(content)
-    sub1 = lastindex(content)
+    subi = firstindex(subpaths)
+    sub1 = lastindex(subpaths)
     @sync while subi <= sub1
         try
             for _ in subi:sub1
-                name = content[subi]
+                path = subpaths[subi]
                 subi += 1
 
                 endsig[] && return endsig[]
-                path = joinpath(root, name)
                 flag = f(path)
                 (flag === true) && (endsig[] = flag)
                 endsig[] && return endsig[]
@@ -108,7 +108,6 @@ function walkdown(f::Function, root;
     thfrec > 0.0 ? 
         _walkdown_th(f, root; keepout, onerr, endsig = Ref(false), thfrec) :
         _walkdown(f, root; keepout, onerr)
-    
     return nothing
 end
 
