@@ -3,7 +3,9 @@ function _walkdown(f::Function, root::AbstractString;
     )
 
     content = try; readdir(root)
-        catch err; (onerr(root, err) === true) && return
+        catch err; 
+            flag = onerr(path, err)
+            (flag === true) && return flag
     end
 
     # walk dir
@@ -17,17 +19,20 @@ function _walkdown(f::Function, root::AbstractString;
                 subi += 1
 
                 path = joinpath(root, name)
-                (f(path) === true) && return
+                flag = f(path)
+                (flag === true) && return flag
 
                 if isdir(path)
                     keepout(path) && continue
-                    _walkdown(f, path; keepout, onerr)
+                    flag = walkdown(f, path; keepout, onerr)
+                    (flag === true) && return flag
                 end
             end
         catch err;
-            (onerr(path, err) === true) && return
+            flag = onerr(path, err)
+            (flag === true) && return flag
         end
-    end
+    end # while
 end
 
 function _walkdown_th(f::Function, root::AbstractString;
@@ -35,10 +40,12 @@ function _walkdown_th(f::Function, root::AbstractString;
         endsig::Ref{Bool}, thfrec::Float64
     )
 
-    endsig[] && return
+    endsig[] && return endsig[]
     
     content = try; readdir(root)
-        catch err; (onerr(root, err) === true) && (endsig[] = true; return)
+        catch err; 
+            flag = onerr(root, err) 
+            (flag === true) && (endsig[] = flag; return flag)
     end
     
     # walk dir
@@ -52,9 +59,11 @@ function _walkdown_th(f::Function, root::AbstractString;
                 name = content[subi]
                 subi += 1
 
+                endsig[] && return endsig[]
                 path = joinpath(root, name)
-                (f(path) === true) && (endsig[] = true)
-                endsig[] && return
+                flag = f(path)
+                (flag === true) && (endsig[] = flag)
+                endsig[] && return endsig[]
 
                 if isdir(path)
                     keepout(path) && continue
@@ -66,8 +75,8 @@ function _walkdown_th(f::Function, root::AbstractString;
                 end
             end
         catch err
-            (onerr(path, err) === true) && (endsig[] = true)
-            endsig[] == true
+            flag = onerr(path, err)
+            (flag === true) && (endsig[] = flag)
         end
     end
 
