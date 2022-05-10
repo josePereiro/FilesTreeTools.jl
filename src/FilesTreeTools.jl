@@ -9,6 +9,7 @@ module FilesTreeTools
     include("filterdown.jl")
     include("walkup.jl")
     include("filterup.jl")
+    include("keepout.jl")
 
     export walkup, filterup
     export walkdown, filterdown

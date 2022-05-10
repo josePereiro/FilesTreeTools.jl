@@ -101,15 +101,15 @@ defaults:
 
 """
 function walkdown(f::Function, root; 
-        keepout::Function = _default_keepout, 
+        keepout::Union{Function, Vector{<:AbstractString}, Vector{Regex}} = _default_keepout, 
         onerr::Function = _default_onerr,
         thfrec::Float64 = 0.0
     ) 
+    keepout = _select_keepout(keepout)
     thfrec > 0.0 ? 
         _walkdown_th(f, root; keepout, onerr, endsig = Ref(false), thfrec) :
         _walkdown(f, root; keepout, onerr)
     return nothing
 end
-
 
 
