@@ -29,7 +29,7 @@ function walkup(f::Function, dir0::AbstractString;
     end
 
     # base
-    (dir0 == root) && return nothing
+    (dir0 == root) && return
     
     # recursive
     walkup(f, dirname(dir0); root, onerr)
