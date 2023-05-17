@@ -4,7 +4,7 @@ function _walkdown(f::Function, root::AbstractString;
 
     subpaths = try; readdir(root; join = true)
         catch err; 
-            flag = onerr(path, err)
+            flag = onerr(root, err)
             (flag === true) && return flag
     end
 
