@@ -5,7 +5,8 @@ function _walkdown(f::Function, root::AbstractString;
     subpaths = try; readdir(root; join = true)
         catch err; 
             flag = onerr(root, err)
-            (flag === true) && return flag
+            (flag === true) && return true
+            (flag === :break) && return true
     end
 
     # walk dir
@@ -19,19 +20,20 @@ function _walkdown(f::Function, root::AbstractString;
                 subi += 1
 
                 flag = f(path)
-                if (flag === true) 
-                    return flag
-                end
+                (flag === true) && return true
+                (flag === :break) && return true
 
                 if isdir(path)
                     keepout(path) && continue
                     flag = _walkdown(f, path; keepout, onerr)
-                    (flag === true) && return flag
+                    (flag === true) && return true
+                    (flag === :break) && return true
                 end
             end
         catch err;
             flag = onerr(path, err)
-            (flag === true) && return flag
+            (flag === true) && return true
+            (flag === :break) && return true
         end
     end # whiles
 end
@@ -46,7 +48,8 @@ function _walkdown_th(f::Function, root::AbstractString;
     subpaths = try; readdir(root; join = true)
         catch err; 
             flag = onerr(root, err) 
-            (flag === true) && (endsig[] = flag; return flag)
+            (flag === true) && (endsig[] = true; return true)
+            (flag === :break) && (endsig[] = true; return true)
     end
     
     # walk dir
@@ -62,7 +65,8 @@ function _walkdown_th(f::Function, root::AbstractString;
 
                 endsig[] && return endsig[]
                 flag = f(path)
-                (flag === true) && (endsig[] = flag)
+                (flag === true) && (endsig[] = true)
+                (flag === :break) && (endsig[] = true)
                 endsig[] && return endsig[]
 
                 if isdir(path)
@@ -76,7 +80,8 @@ function _walkdown_th(f::Function, root::AbstractString;
             end
         catch err
             flag = onerr(path, err)
-            (flag === true) && (endsig[] = flag)
+            (flag === true) && (endsig[] = true)
+            (flag === :break) && (endsig[] = true)
         end
     end
 
@@ -86,8 +91,7 @@ end
 `walkdown_th(f, root; onerr::Function, keepout::Function, thfrec::Float64)`
 
 walkdown the file tree applying `f` to all the founded paths.
-The return value of `f` is consider a break flag, so if it returns `true`
-the walk if over.
+The return value of `f` is consider a break flag, so if it returns `true` or `:break` the walk if over.
 `keepout` is a filter that disallows walks a dir if returns `true`.
 `thfrec` = [0,1] determines the frecuency of @spawn threads.
 That is, `thfrec > 0` makes the method multithreaded.
